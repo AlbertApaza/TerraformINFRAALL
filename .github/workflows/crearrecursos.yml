@@ -33,8 +33,7 @@ jobs:
         ls -la  # Para verificar la estructura de archivos
         cd infra 
         terraform init
-        aws s3 rm s3://netuptinteligencianegocios --recursive
-        aws glue delete-crawler --name netuptinteligencianegocios-crawler
+
     
     - name: Apply Terraform Configuration
       run: |
