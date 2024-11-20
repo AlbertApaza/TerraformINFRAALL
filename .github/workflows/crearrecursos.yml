@@ -33,12 +33,27 @@ jobs:
         ls -la  # Para verificar la estructura de archivos
         cd infra 
         terraform init
-
     
     - name: Apply Terraform Configuration
       run: |
         cd infra 
         terraform apply --auto-approve
+    
+    - name: Copy Terraform State to Repository
+      run: |
+        echo "Copiando el archivo terraform.tfstate al repositorio local..."
+        cp infra/terraform.tfstate infra/terraform.tfstate.backup || true  # Copia de seguridad opcional
+        cp infra/terraform.tfstate ./  # Copia el estado al directorio raíz del repositorio
+    
+    - name: Commit and Push State File
+      run: |
+        echo "Confirmando y enviando terraform.tfstate al repositorio remoto..."
+        git config --global user.name "AlbertApaza"
+        git config --global user.email "aa2021071075@virtual.upt.pe"
+        git add terraform.tfstate
+        git commit -m "Actualizando terraform.tfstate después de apply"
+        git push origin main  # Asegúrate de que el nombre de tu rama sea correcto
+
 
     - name: Run Python Script to interact with S3
       run: |
