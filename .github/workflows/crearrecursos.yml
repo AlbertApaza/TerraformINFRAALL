@@ -1,4 +1,3 @@
----
 name: AWS Glue and Terraform Setup
 
 on: [push]
@@ -53,3 +52,7 @@ jobs:
           echo "Waiting for Glue Table creation..."
           sleep 30
         done
+
+    - name: Destroy Terraform Infrastructure
+      run: |
+        terraform destroy --auto-approve
