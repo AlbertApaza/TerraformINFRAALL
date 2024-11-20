@@ -42,7 +42,7 @@ jobs:
 
     - name: Run Python Script to interact with S3
       run: |
-        python3 estas3bucket.py
+        python3 s3bucket.py
 
     - name: Start Glue Crawler
       run: |
