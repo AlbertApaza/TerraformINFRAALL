@@ -47,23 +47,23 @@ jobs:
     - name: Start Glue Crawler
       run: |
         aws glue start-crawler --name netuptinteligencianegocios-crawler
-    
+
+        
     - name: Wait for Glue Table Creation
       run: |
         # Espera 5 minutos antes de proceder
         echo "Esperando 5 minutos para que el crawler termine de crear la tabla..."
-        sleep 300  # 5 minutos
+        sleep 300
     
-        # Verificar la creación de la tabla
-        while true; do
-          status=$(aws glue get-table --database-name tb_redupt_database --name netuptinteligencianegocios --query 'Table.UpdateTime' --output text)
-          if [ "$status" != "None" ]; then
-            echo "Glue Table has been created successfully."
-            break
-          fi
-          echo "Waiting for Glue Table creation..."
-          sleep 30  # Espera 30 segundos antes de intentar nuevamente
-        done
+    - name: Show Specific Glue Table Details
+      run: |
+        echo "Verificando la tabla 'netuptinteligencianegocios' en la base de datos 'tb_redupt_database'..."
+        aws glue get-table --database-name tb_redupt_database --name netuptinteligencianegocios --output json
+    
+    - name: Clean Up S3 Bucket
+      run: |
+        echo "Limpiando el bucket S3 'netuptinteligencianegocios' antes de destruir la infraestructura..."
+        aws s3 rm s3://netuptinteligencianegocios --recursive
     
     - name: Destroy Terraform Infrastructure
       run: |
