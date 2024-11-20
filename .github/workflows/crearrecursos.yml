@@ -43,13 +43,18 @@ jobs:
     - name: Run Python Script to interact with S3
       run: |
         python3 s3bucket.py
-
+        
     - name: Start Glue Crawler
       run: |
         aws glue start-crawler --name netuptinteligencianegocios-crawler
-
+    
     - name: Wait for Glue Table Creation
       run: |
+        # Espera 5 minutos antes de proceder
+        echo "Esperando 5 minutos para que el crawler termine de crear la tabla..."
+        sleep 300  # 5 minutos
+    
+        # Verificar la creación de la tabla
         while true; do
           status=$(aws glue get-table --database-name tb_redupt_database --name netuptinteligencianegocios --query 'Table.UpdateTime' --output text)
           if [ "$status" != "None" ]; then
@@ -57,9 +62,9 @@ jobs:
             break
           fi
           echo "Waiting for Glue Table creation..."
-          sleep 30
+          sleep 30  # Espera 30 segundos antes de intentar nuevamente
         done
-
+    
     - name: Destroy Terraform Infrastructure
       run: |
         cd infra
