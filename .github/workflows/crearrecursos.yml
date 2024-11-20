@@ -1,4 +1,4 @@
-name: Create VPC-RDS AWS Connectivity
+name: AWS Setup and Query Execution
 
 on:
   push:
@@ -6,83 +6,98 @@ on:
       - main
 
 jobs:
-  aws-connectivity:
+  setup-and-query:
     runs-on: ubuntu-latest
 
-    steps: 
-      # Paso 1: Checkout del código
-      - name: Checkout code
-        uses: actions/checkout@v3
+    steps:
+      # Clonar el repositorio
+      - name: Checkout repository
+        uses: actions/checkout@v2
 
-      # Paso 2: Instalar AWS CLI
-      - name: Install AWS CLI
+      # Configurar credenciales de AWS
+      - name: Set up AWS CLI
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+          aws-region: us-east-1
+
+      # Instalar Python y Boto3
+      - name: Install Python and Boto3
         run: |
           sudo apt-get update
-          sudo apt-get install -y awscli
+          sudo apt-get install -y python3 python3-pip
+          pip3 install boto3
 
-      # Paso 3: Instalar Terraform
-      - name: Install Terraform
+      # Crear la VPC si no existe
+      - name: Create VPC and Subnets
         run: |
-          # Descargar la clave GPG de HashiCorp
-          wget -O - https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-          
-          # Agregar el repositorio de HashiCorp
-          echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
-          
-          # Actualizar apt e instalar Terraform
-          sudo apt update && sudo apt install -y terraform
+          VPC_ID=$(aws ec2 create-vpc --cidr-block 10.0.0.0/16 --query "Vpc.VpcId" --output text)
+          echo "::set-output name=vpc_id::$VPC_ID"
 
-      # Paso 4: Configurar las credenciales de AWS
-      - name: Configure AWS credentials
+          # Crear subredes en diferentes zonas de disponibilidad
+          aws ec2 create-subnet --vpc-id $VPC_ID --cidr-block 10.0.1.0/24 --availability-zone us-east-1a
+          aws ec2 create-subnet --vpc-id $VPC_ID --cidr-block 10.0.2.0/24 --availability-zone us-east-1b
+          aws ec2 create-subnet --vpc-id $VPC_ID --cidr-block 10.0.3.0/24 --availability-zone us-east-1c
+          aws ec2 create-subnet --vpc-id $VPC_ID --cidr-block 10.0.4.0/24 --availability-zone us-east-1d
+          aws ec2 create-subnet --vpc-id $VPC_ID --cidr-block 10.0.5.0/24 --availability-zone us-east-1e
+          aws ec2 create-subnet --vpc-id $VPC_ID --cidr-block 10.0.6.0/24 --availability-zone us-east-1f
+
+          # Asociar un IGW (Internet Gateway) a la VPC
+          IGW_ID=$(aws ec2 create-internet-gateway --query "InternetGateway.InternetGatewayId" --output text)
+          aws ec2 attach-internet-gateway --internet-gateway-id $IGW_ID --vpc-id $VPC_ID
+
+          # Crear tabla de enrutamiento y asociarla a las subredes
+          RTB_ID=$(aws ec2 create-route-table --vpc-id $VPC_ID --query "RouteTable.RouteTableId" --output text)
+          aws ec2 create-route --route-table-id $RTB_ID --destination-cidr-block 0.0.0.0/0 --gateway-id $IGW_ID
+
+          # Asociar las subredes a la tabla de enrutamiento
+          for SUBNET in $(aws ec2 describe-subnets --filters "Name=vpc-id,Values=$VPC_ID" --query "Subnets[*].SubnetId" --output text); do
+            aws ec2 associate-route-table --subnet-id $SUBNET --route-table-id $RTB_ID
+          done
+
+      # Comprobar y crear el bucket S3
+      - name: Check if S3 bucket exists
+        id: check_s3_bucket
         run: |
-          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws configure set aws_session_token ${{ secrets.AWS_SESSION_TOKEN }}
-          aws configure set region us-east-1
+          BUCKET_EXISTS=$(aws s3api head-bucket --bucket netuptinteligencianegocios 2>&1 || echo "Bucket does not exist")
+          echo "::set-output name=exists::$BUCKET_EXISTS"
 
-      # Paso 5: Verificar las credenciales con AWS STS
-      - name: Get AWS Caller Identity
-        run: aws sts get-caller-identity
-
-      # Paso 6: Inicializar Terraform
-      - name: Initialize Terraform
+      - name: Create S3 bucket if not exists
+        if: steps.check_s3_bucket.outputs.exists == 'Bucket does not exist'
         run: |
-          cd infra
-          terraform init
+          aws s3api create-bucket --bucket netuptinteligencianegocios --region us-east-1
+          aws s3 ls
 
-      # Paso 7: Importar el grupo de seguridad existente
-      - name: Import existing Security Group
+      # Obtener o crear base de datos y Crawler de Glue
+      - name: Check if Glue Database exists
+        id: check_glue_database
         run: |
-          cd infra
-          terraform import aws_security_group.rds_sg sg-07b429862db727709
+          DATABASE_EXISTS=$(aws glue get-databases --query "DatabaseList[?Name=='netupt_database'].Name" --output text)
+          echo "::set-output name=database_exists::$DATABASE_EXISTS"
 
-      # Paso 8: Validar la configuración de Terraform
-      - name: Validate Terraform configuration
+      - name: Create Glue Database if not exists
+        if: steps.check_glue_database.outputs.database_exists == ''
         run: |
-          cd infra
-          terraform validate
+          aws glue create-database --database-input "{\"Name\": \"netupt_database\"}"
 
-      # Paso 9: Verificar el estado actual de Terraform
-      - name: Check Terraform state
+      - name: Check if Glue Crawler exists
+        id: check_glue_crawler
         run: |
-          cd infra
-          terraform state list
+          CRAWLER_EXISTS=$(aws glue get-crawlers --query "CrawlerList[?Name=='netupt-csv-crawler'].Name" --output text)
+          echo "::set-output name=crawler_exists::$CRAWLER_EXISTS"
 
-      # Paso 10: Generar el plan de Terraform
-      - name: Terraform Plan
+      - name: Create Glue Crawler if not exists
+        if: steps.check_glue_crawler.outputs.crawler_exists == ''
         run: |
-          cd infra
-          terraform plan
+          aws glue create-crawler --name netupt-csv-crawler --role arn:aws:iam::183789758787:role/LabRole --database-name netupt_database --targets "S3Targets=[{Path='s3://netuptinteligencianegocios/'}]"
 
-      # Paso 11: Aplicar la configuración de Terraform
-      - name: Apply Terraform configuration
+      # Consultar tablas con Athena
+      - name: Start Athena Query
         run: |
-          cd infra
-          terraform apply -auto-approve || echo "Si el recurso ya existe, continuamos sin crear nuevos recursos."
+          aws athena start-query-execution --query-string "SHOW TABLES" --query-execution-context Database="netupt_database" --result-configuration OutputLocation="s3://netuptinteligencianegocios/athena/results/"
 
-      # Paso 12: Limpiar credenciales de AWS (opcional)
-      - name: Clean up AWS CLI session
+      - name: List Athena results in S3
         run: |
-          unset AWS_ACCESS_KEY_ID
-          unset AWS_SECRET_ACCESS_KEY
-          unset AWS_SESSION_TOKEN
+          aws s3 ls s3://netuptinteligencianegocios/athena/results/
