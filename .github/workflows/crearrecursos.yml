@@ -15,6 +15,9 @@ jobs:
         aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }} # Si usas MFA o sesiones temporales
         aws-region: us-east-1
 
+    - name: Checkout code
+      uses: actions/checkout@v2  # Añadir este paso para descargar el código
+
     - name: Install AWS CLI
       run: |
         sudo apt-get update
@@ -27,7 +30,7 @@ jobs:
 
     - name: Terraform Initialization
       run: |
-        ls -la
+        ls -la  # Para verificar la estructura de archivos
         cd infra 
         terraform init
 
