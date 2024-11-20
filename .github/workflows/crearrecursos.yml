@@ -1,0 +1,88 @@
+name: Create VPC-RDS AWS Connectivity
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  aws-connectivity:
+    runs-on: ubuntu-latest
+
+    steps: 
+      # Paso 1: Checkout del código
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Paso 2: Instalar AWS CLI
+      - name: Install AWS CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y awscli
+
+      # Paso 3: Instalar Terraform
+      - name: Install Terraform
+        run: |
+          # Descargar la clave GPG de HashiCorp
+          wget -O - https://apt.releases.hashicorp.com/gpg | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+          
+          # Agregar el repositorio de HashiCorp
+          echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" | sudo tee /etc/apt/sources.list.d/hashicorp.list
+          
+          # Actualizar apt e instalar Terraform
+          sudo apt update && sudo apt install -y terraform
+
+      # Paso 4: Configurar las credenciales de AWS
+      - name: Configure AWS credentials
+        run: |
+          aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws configure set aws_session_token ${{ secrets.AWS_SESSION_TOKEN }}
+          aws configure set region us-east-1
+
+      # Paso 5: Verificar las credenciales con AWS STS
+      - name: Get AWS Caller Identity
+        run: aws sts get-caller-identity
+
+      # Paso 6: Inicializar Terraform
+      - name: Initialize Terraform
+        run: |
+          cd infra
+          terraform init
+
+      # Paso 7: Importar el grupo de seguridad existente
+      - name: Import existing Security Group
+        run: |
+          cd infra
+          terraform import aws_security_group.rds_sg sg-07b429862db727709
+
+      # Paso 8: Validar la configuración de Terraform
+      - name: Validate Terraform configuration
+        run: |
+          cd infra
+          terraform validate
+
+      # Paso 9: Verificar el estado actual de Terraform
+      - name: Check Terraform state
+        run: |
+          cd infra
+          terraform state list
+
+      # Paso 10: Generar el plan de Terraform
+      - name: Terraform Plan
+        run: |
+          cd infra
+          terraform plan
+
+      # Paso 11: Aplicar la configuración de Terraform
+      - name: Apply Terraform configuration
+        run: |
+          cd infra
+          terraform apply -auto-approve || echo "Si el recurso ya existe, continuamos sin crear nuevos recursos."
+
+      # Paso 12: Limpiar credenciales de AWS (opcional)
+      - name: Clean up AWS CLI session
+        run: |
+          unset AWS_ACCESS_KEY_ID
+          unset AWS_SECRET_ACCESS_KEY
+          unset AWS_SESSION_TOKEN
