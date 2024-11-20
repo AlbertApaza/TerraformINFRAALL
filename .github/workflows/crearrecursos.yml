@@ -46,13 +46,16 @@ jobs:
         cp infra/terraform.tfstate ./  # Copia el estado al directorio raíz del repositorio
     
     - name: Commit and Push State File
+      env:
+        GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
       run: |
-        echo "Confirmando y enviando terraform.tfstate al repositorio remoto..."
         git config --global user.name "AlbertApaza"
         git config --global user.email "aa2021071075@virtual.upt.pe"
+        git remote set-url origin https://$GITHUB_TOKEN@github.com/AlbertApaza/TerraformINFRAALL.git
         git add terraform.tfstate
         git commit -m "Actualizando terraform.tfstate después de apply"
-        git push origin main  # Asegúrate de que el nombre de tu rama sea correcto
+        git push origin main
+
 
 
     - name: Run Python Script to interact with S3
