@@ -27,6 +27,7 @@ jobs:
 
     - name: Terraform Initialization
       run: |
+        ls -la
         cd infra 
         terraform init
 
