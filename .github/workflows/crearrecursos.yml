@@ -27,10 +27,12 @@ jobs:
 
     - name: Terraform Initialization
       run: |
+        cd infra 
         terraform init
 
     - name: Apply Terraform Configuration
       run: |
+        cd infra 
         terraform apply --auto-approve
 
     - name: Run Python Script to interact with S3
@@ -55,4 +57,5 @@ jobs:
 
     - name: Destroy Terraform Infrastructure
       run: |
+        cd infra
         terraform destroy --auto-approve
