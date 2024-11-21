@@ -69,8 +69,18 @@ jobs:
         cd infra
         terraform init  # Inicializa Terraform
         terraform destroy --auto-approve  # Destruye los recursos creados por Terraform
-
-
+    
+        # Eliminar el archivo terraform.tfstate
+        rm -f terraform.tfstate  # Elimina el archivo terraform.tfstate
+    
+        # Hacer commit de la eliminación del archivo terraform.tfstate
+        git config --global user.name "AlbertApaza"
+        git config --global user.email "aa2021071075@virtual.upt.pe"
+        git add terraform.tfstate
+        git commit -m "Eliminado terraform.tfstate después de destruir los recursos"
+        git push https://${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }} HEAD:main  # Realiza el push con el PAT (Personal Access Token)
+    
+    
 
 
 
@@ -108,16 +118,3 @@ jobs:
       run: |
         aws glue get-table --database-name tb_redupt_database --name netuptinteligencianegocios  # Obtiene la tabla de Glue después de que el Crawler haya terminado
 
-    - name: Wait for 1 Hour Before Destroying Resources
-      run: |
-        echo "Waiting for 1 hour before destroying resources..."
-        sleep 30 # Espera de 3600 segundos (1 hora)
-
-    - name: Empty the S3 Bucket
-      run: |
-        aws s3 rm s3://netuptinteligencianegocios --recursive
-
-    - name: Terraform Destroy
-      run: |
-        cd infra
-        terraform destroy --auto-approve  # Destruye los recursos creados por Terraform
