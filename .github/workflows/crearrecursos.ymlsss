@@ -12,7 +12,7 @@ jobs:
       with:
         aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }} # Si usas MFA o sesiones temporales
+        aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}  # Si usas MFA o sesiones temporales
         aws-region: us-east-1
 
     - name: Checkout code
@@ -21,69 +21,56 @@ jobs:
     - name: Install AWS CLI
       run: |
         sudo apt-get update
-        sudo apt-get install -y awscli
+        sudo apt-get install -y awscli  # Instala AWS CLI
 
     - name: Install Python and Boto3
       run: |
-        sudo apt-get install -y python3 python3-pip
-        pip3 install boto3
+        sudo apt-get install -y python3 python3-pip  # Instala Python y pip
+        pip3 install boto3  # Instala Boto3, la librería de AWS para Python
 
-    - name: Terraform Initialization
+    - name: Install dependencies from requirements.txt
       run: |
-        ls -la  # Para verificar la estructura de archivos
-        cd infra 
-        terraform init
-    
-    - name: Apply Terraform Configuration
-      run: |
-        cd infra 
-        terraform apply --auto-approve
-    
-    - name: Copy Terraform State to Repository
-      run: |
-        echo "Copiando el archivo terraform.tfstate al repositorio local..."
-        cp infra/terraform.tfstate infra/terraform.tfstate.backup || true  # Copia de seguridad opcional
-        cp infra/terraform.tfstate ./  # Copia el estado al directorio raíz del repositorio
-    
-    - name: Commit and Push State File
-      env:
-        GITHUB_TOKEN: ${{ secrets.PAT_TOKEN }}
-      run: |
-        git config --global user.name "AlbertApaza"
-        git config --global user.email "aa2021071075@virtual.upt.pe"
-        git remote set-url origin https://$GITHUB_TOKEN@github.com/AlbertApaza/TerraformINFRAALL.git
-        git add terraform.tfstate
-        git commit -m "Actualizando terraform.tfstate después de apply"
-        git push origin main
+        cd artefactos  # Navega a la carpeta de artefactos
+        pip3 install -r requirements.txt  # Instala dependencias de Python desde requirements.txt
 
+    - name: Execute SQL to CSV script
+      run: |
+        cd artefactos
+        python3 sqlcsv.py  # Ejecuta el script que convierte los archivos SQL en CSV
 
+    - name: Zip Lambda function and CSV
+      run: |
+        cd artefactos
+        zip lambda_function.zip s3bucket.py datos_combinados.csv  # Crea un archivo zip con el código Lambda y los datos
 
-    - name: Run Python Script to interact with S3
-      run: |
-        python3 s3bucket.py
-        
-    - name: Start Glue Crawler
-      run: |
-        aws glue start-crawler --name netuptinteligencianegocios-crawler
-
-        
-    - name: Wait for Glue Table Creation
-      run: |
-        # Espera 5 minutos antes de proceder
-        echo "Esperando 5 minutos para que el crawler termine de crear la tabla..."
-        sleep 300
-    
-    - name: Show Specific Glue Table Details
-      run: |
-        echo "Verificando la tabla 'netuptinteligencianegocios' en la base de datos 'tb_redupt_database'..."
-        aws glue get-table --database-name tb_redupt_database --name netuptinteligencianegocios --output json
-    
-    - name: Clean Up S3 Bucket
-      run: |
-        echo "Limpiando el bucket S3 'netuptinteligencianegocios' antes de destruir la infraestructura..."
-        aws s3 rm s3://netuptinteligencianegocios --recursive
-    
-    - name: Destroy Terraform Infrastructure
+    - name: Set up Terraform
       run: |
         cd infra
-        terraform destroy --auto-approve
+        terraform init  # Inicializa Terraform
+        terraform apply --auto-approve  # Aplica la configuración de Terraform para crear los recursos
+
+    - name: Copy Terraform State to Current Directory
+      run: |
+        cp infra/terraform.tfstate ./  # Copia el archivo terraform.tfstate al directorio actual
+
+    - name: Commit Terraform State to GitHub
+      run: |
+        git add terraform.tfstate
+        git commit -m "Update terraform state"
+        git push origin main  # Realiza un commit con el estado de Terraform y lo sube a la rama main
+
+    - name: Invoke Lambda function to upload to S3
+      run: |
+        aws lambda invoke --function-name s3-upload-function --payload '{}' output.txt  # Invoca la función Lambda para cargar el archivo en S3
+
+    - name: Start Glue Crawler
+      run: |
+        aws glue start-crawler --name netuptinteligencianegocios-crawler  # Inicia el Crawler de Glue
+
+    - name: Wait for Crawler to Finish
+      run: |
+        sleep 150  # Espera de 2 minutos para permitir que el Crawler termine
+
+    - name: Get Table from Glue
+      run: |
+        aws glue get-table --database-name tb_redupt_database --name netuptinteligencianegocios  # Obtiene la tabla de Glue después de que el Crawler haya terminado
