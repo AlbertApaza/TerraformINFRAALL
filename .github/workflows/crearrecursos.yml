@@ -87,7 +87,6 @@ jobs:
     - name: Set up Terraform
       run: |
         cd infra
-        terraform init  # Inicializa Terraform
         terraform apply --auto-approve  # Aplica la configuración de Terraform para crear los recursos
 
     - name: Copy Terraform State to Current Directory
