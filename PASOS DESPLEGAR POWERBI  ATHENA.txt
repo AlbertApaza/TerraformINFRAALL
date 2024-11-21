@@ -16,4 +16,4 @@ DATABASE : default
 WORKGROUP: primary
 S3 OUTPUT : s3://netuptinteligencianegocios/athena-output/
 
-authentication options : DEFAULT CREDENTIALS
+authentication options : DEFAULT CREDENTIALS (recuerda tener tus credenciales configuradas access id token )
