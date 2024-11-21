@@ -49,37 +49,6 @@ jobs:
         cd artefactos
         zip lambda_function.zip s3bucket.py datos_combinados.csv  # Crea un archivo zip con el código Lambda y los datos
 
-    - name: ------------------------
-      run: |
-        echo "Esperando 1 segundo antes de destruir los recursos..."
-        sleep 1  # Espera de 1 segundo
-
-    - name: Empty the S3 Bucket if it has content
-      run: |
-        # Verifica si el bucket tiene objetos y, si los tiene, los elimina
-        if aws s3 ls s3://netuptinteligencianegocios --recursive | grep -q .; then
-          echo "El bucket tiene contenido. Eliminando los archivos..."
-          aws s3 rm s3://netuptinteligencianegocios --recursive
-        else
-          echo "El bucket está vacío. No es necesario eliminar contenido."
-        fi
-
-    - name: Initialize and Destroy Terraform Resources
-      run: |
-        cd infra
-        terraform init  # Inicializa Terraform
-        terraform destroy --auto-approve  # Destruye los recursos creados por Terraform
-    
-        # Eliminar el archivo terraform.tfstate
-        rm -f terraform.tfstate  # Elimina el archivo terraform.tfstate
-    
-        # Hacer commit de la eliminación del archivo terraform.tfstate
-        git config --global user.name "AlbertApaza"
-        git config --global user.email "aa2021071075@virtual.upt.pe"
-        git add terraform.tfstate
-        git commit -m "Eliminado terraform.tfstate después de destruir los recursos"
-        git push https://${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }} HEAD:main  # Realiza el push con el PAT (Personal Access Token)
-    
     
     - name: Set up Terraform
       run: |
