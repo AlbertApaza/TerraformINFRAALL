@@ -2,55 +2,6 @@ provider "aws" {
   region = "us-east-1"
 }
 
-# Crear una VPC
-resource "aws_vpc" "vpc_negocios" {
-  cidr_block           = "10.0.0.0/16"
-  enable_dns_support   = true
-  enable_dns_hostnames = true
-  tags = {
-    Name = "vpc_negocios"
-  }
-}
-
-# Crear subredes en diferentes zonas de disponibilidad
-resource "aws_subnet" "subnets" {
-  count                   = 6
-  vpc_id                  = aws_vpc.vpc_negocios.id
-  cidr_block              = "10.0.${count.index + 1}.0/24"
-  availability_zone       = element(["us-east-1a", "us-east-1b", "us-east-1c", "us-east-1d", "us-east-1e", "us-east-1f"], count.index)
-  map_public_ip_on_launch = true
-  tags = {
-    Name = "subnet-${count.index + 1}"
-  }
-}
-
-# Crear un Internet Gateway
-resource "aws_internet_gateway" "igw" {
-  vpc_id = aws_vpc.vpc_negocios.id
-  tags = {
-    Name = "igw_negocios"
-  }
-}
-
-# Crear tabla de enrutamiento y asociarla al IGW
-resource "aws_route_table" "route_table" {
-  vpc_id = aws_vpc.vpc_negocios.id
-  route {
-    cidr_block = "0.0.0.0/0"
-    gateway_id = aws_internet_gateway.igw.id
-  }
-  tags = {
-    Name = "route_table_negocios"
-  }
-}
-
-# Asociar tabla de enrutamiento a las subredes
-resource "aws_route_table_association" "route_associations" {
-  count          = 6
-  subnet_id      = aws_subnet.subnets[count.index].id
-  route_table_id = aws_route_table.route_table.id
-}
-
 # Crear un bucket S3
 resource "aws_s3_bucket" "s3_bucket" {
   bucket = "netuptinteligencianegocios"
@@ -65,11 +16,10 @@ resource "aws_glue_catalog_database" "albertapaza_database" {
   description = "Base de datos para almacenar tablas de inteligencia de negocios"
 }
 
-
 # Crear un Crawler de AWS Glue
 resource "aws_glue_crawler" "netuptinteligencianegocios_crawler" {
   name          = "netuptinteligencianegocios-crawler"
-  role          = "arn:aws:iam::183789758787:role/LabRole"
+  role          = "arn:aws:iam::183789758787:role/LabRole"  # Usar el rol existente
   database_name = aws_glue_catalog_database.albertapaza_database.name
 
   s3_target {
@@ -92,6 +42,44 @@ resource "aws_glue_crawler" "netuptinteligencianegocios_crawler" {
   depends_on = [aws_s3_bucket.s3_bucket] # Asegura que el bucket S3 sea creado antes del Crawler
 }
 
+# Crear la función Lambda
+resource "aws_lambda_function" "s3_upload_lambda" {
+  filename         = "../artefactos/lambda_function.zip"  # Ruta relativa al archivo ZIP de la función Lambda
+  function_name    = "s3-upload-function"
+  role             = "arn:aws:iam::183789758787:role/LabRole"  # Usar el rol existente
+  handler          = "s3bucket.lambda_handler"  # El nombre de la función de entrada del código Python
+  runtime          = "python3.8"  # Runtime Python 3.8
+  timeout          = 30
+  memory_size      = 128
+  source_code_hash = filebase64sha256("../artefactos/lambda_function.zip")  # Hash del archivo ZIP
+
+  environment {
+    variables = {
+      BUCKET_NAME = "netuptinteligencianegocios"
+    }
+  }
+}
+
+
+# Crear un evento en S3 para activar la función Lambda
+resource "aws_s3_bucket_notification" "s3_event_to_lambda" {
+  bucket = aws_s3_bucket.s3_bucket.bucket
+
+  lambda_function {
+    events             = ["s3:ObjectCreated:*"]
+    lambda_function_arn = aws_lambda_function.s3_upload_lambda.arn
+  }
+
+  depends_on = [aws_lambda_function.s3_upload_lambda]
+}
+
+# Dar permiso a S3 para invocar la función Lambda
+resource "aws_lambda_permission" "allow_s3_to_invoke_lambda" {
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.s3_upload_lambda.function_name
+  principal     = "s3.amazonaws.com"
+  source_arn    = aws_s3_bucket.s3_bucket.arn
+}
 
 #gets id
 #2 aws glue get-crawler --name netuptinteligencianegocios-crawler
@@ -102,15 +90,18 @@ resource "aws_glue_crawler" "netuptinteligencianegocios_crawler" {
 
 
 
+#pasos eliminar
+#aws s3 rm s3://netuptinteligencianegocios --recursive
 
-
-#pasos 
+#pasos iniciar
 #terraform apply --auto-approve (si es primera vez)
     #si no, limpiar el bucket
         #aws s3 rm s3://netuptinteligencianegocios --recursive
         #aws glue delete-crawler --name netuptinteligencianegocios-crawler
 
-#ejecutar python "s3bucket.py"
+#ejecutar lambda
+#aws lambda invoke --function-name s3-upload-function --payload '{}' output.txt
+
 #aws glue start-crawler --name netuptinteligencianegocios-crawler
     #esperar 2 minutos  a lo mucho aunque depende de los datos
 #aws glue get-table --database-name tb_redupt_database --name netuptinteligencianegocios

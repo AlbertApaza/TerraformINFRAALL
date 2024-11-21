@@ -1,0 +1,19 @@
+paso para powerbi
+descargra odbc:https://downloads.athena.us-east-1.amazonaws.com/drivers/ODBC/v2.0.3.0/Windows/AmazonAthenaODBC-2.0.3.0.msi
+1. buscar en windwos odbc
+2. Agregar y selecciona el controlador "Amazon Athena ODBC Driver"
+3. datos
+	-region=us-east-1
+	-bucket :netuptinteligencianegocios
+	-credentials access token id
+
+4. como deben ponerse
+DATA SOURCE NAME:athena-in
+DESCRIPTION : athena-in in power bi
+REGION : us-east-1
+CATALOG : AwsDataCatalog
+DATABASE : default
+WORKGROUP: primary
+S3 OUTPUT : s3://netuptinteligencianegocios/athena-output/
+
+authentication options : DEFAULT CREDENTIALS
