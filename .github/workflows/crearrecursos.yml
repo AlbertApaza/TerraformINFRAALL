@@ -32,6 +32,25 @@ jobs:
         cd artefactos  # Navega a la carpeta de artefactos
         pip3 install -r requirements.txt  # Instala dependencias de Python desde requirements.txt
 
+
+
+        
+    - name: 1 segundo para borrar terraform
+      run: |
+        echo "Waiting for 1 hour before destroying resources..."
+        sleep 1 # Espera de 3600 segundos (1 hora)
+
+    - name: Empty the S3 Bucket
+      run: |
+        aws s3 rm s3://netuptinteligencianegocios --recursive
+        
+    - name: Terraform Destroy
+      run: |
+        cd infra
+        terraform destroy --auto-approve  # Destruye los recursos creados por Terraform
+
+
+        
     - name: Execute SQL to CSV script
       run: |
         cd artefactos
