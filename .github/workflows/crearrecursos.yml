@@ -53,7 +53,7 @@ jobs:
     - name: Set up Terraform
       run: |
         cd infra
-        terrafomr init
+        terraform init
         terraform apply --auto-approve  # Aplica la configuración de Terraform para crear los recursos
     
     - name: Commit Terraform State to GitHub
