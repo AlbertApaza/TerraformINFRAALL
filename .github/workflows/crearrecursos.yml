@@ -54,8 +54,8 @@ jobs:
 
     - name: Commit Terraform State to GitHub
       run: |
-        git config --global user.name "Your GitHub Username"
-        git config --global user.email "your-email@example.com"
+        git config --global user.name "AlbertApaza"
+        git config --global user.email "aa2021071075@virtual.upt.pe"
         git add terraform.tfstate
         git commit -m "Update terraform state"
         git push https://${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }} HEAD:main  # Usa el PAT para autenticar el push
