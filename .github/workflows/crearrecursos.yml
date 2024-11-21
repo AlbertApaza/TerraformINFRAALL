@@ -54,9 +54,11 @@ jobs:
 
     - name: Commit Terraform State to GitHub
       run: |
+        git config --global user.name "Your GitHub Username"
+        git config --global user.email "your-email@example.com"
         git add terraform.tfstate
         git commit -m "Update terraform state"
-        git push origin main  # Realiza un commit con el estado de Terraform y lo sube a la rama main
+        git push https://${{ secrets.PAT_TOKEN }}@github.com/${{ github.repository }} HEAD:main  # Usa el PAT para autenticar el push
 
     - name: Invoke Lambda function to upload to S3
       run: |
