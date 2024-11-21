@@ -1,0 +1,39 @@
+        
+    #pasos eliminar
+    #aws s3 rm s3://netuptinteligencianegocios --recursive
+    #aws glue delete-crawler --name netuptinteligencianegocios-crawler
+
+##primero recuerda hacer checkou de mi repositorio
+    ##instala awcl
+    ##instala python 
+    ## usa requerimets que esta en cd artefactos/requirements.txt
+    ##define confiuguyracion llama a os secretos de github
+        AWS_ACCESS_KEY_ID
+        AWS_SECRET_ACCESS_KEY
+        config
+        region = us-east-1
+        output = json
+    # ejecutar cd artefactos/sqlcsv.py
+    # se generara en la carpeta artefactos/datos_combinados.csv
+    # estandio en la carpeta artefcatos haz zip con s3bucket.py y datos_combinados.csv
+    # llamalo lambda_function.zip
+
+
+
+    ## crear recursos
+    #pasos iniciar
+    #cd infra terraform apply --auto-approve 
+
+
+    #el archivoq ue gener de terraform.tfstate lo copias
+    #cp infra/terraform.tfstate ./  
+    #hacer commit aa2021071075@virtual.upt.pe AlbertApazan y usa PAT_TOKEN que ya tiene el token para hacer commit al repositorio
+
+
+    #ejecutar lambda
+    
+    #aws lambda invoke --function-name s3-upload-function --payload '{}' output.txt
+
+    #aws glue start-crawler --name netuptinteligencianegocios-crawler
+        #esperar 2 minutos  a lo mucho aunque depende de los datos
+    #aws glue get-table --database-name tb_redupt_database --name netuptinteligencianegocios
