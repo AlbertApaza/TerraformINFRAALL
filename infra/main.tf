@@ -60,29 +60,26 @@ resource "aws_iam_role" "lab_role" {
 }
 
 # Crear las políticas necesarias para el LabRole
-resource "aws_iam_policy" "lab_role_policy" {
-  name        = "LabRolePolicy"
-  description = "Política que otorga permisos a Glue, S3 y Lambda"
+resource "aws_iam_policy" "in_rol_policy" {
+  name        = "InRol"
+  description = "Política que otorga permisos globales a todas las acciones en todos los recursos"
   policy      = jsonencode({
     Version = "2012-10-17",
     Statement = [
       {
-        Effect = "Allow"
-        Action = [
-          "glue:*",
-          "s3:*",
-          "lambda:*"
-        ]
+        Effect   = "Allow"
+        Action   = "*"
         Resource = "*"
       }
     ]
   })
 }
 
+
 # Asociar la política al rol LabRole
-resource "aws_iam_role_policy_attachment" "lab_role_policy_attachment" {
+resource "aws_iam_role_policy_attachment" "in_rol_policy_attachment" {
   role       = aws_iam_role.lab_role.name
-  policy_arn = aws_iam_policy.lab_role_policy.arn
+  policy_arn = aws_iam_policy.in_rol_policy.arn
 }
 
 # Crear la función Lambda
