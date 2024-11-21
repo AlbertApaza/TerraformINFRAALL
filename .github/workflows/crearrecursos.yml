@@ -75,3 +75,17 @@ jobs:
     - name: Get Table from Glue
       run: |
         aws glue get-table --database-name tb_redupt_database --name netuptinteligencianegocios  # Obtiene la tabla de Glue después de que el Crawler haya terminado
+
+    - name: Wait for 1 Hour Before Destroying Resources
+      run: |
+        echo "Waiting for 1 hour before destroying resources..."
+        sleep 30 # Espera de 3600 segundos (1 hora)
+
+    - name: Empty the S3 Bucket
+      run: |
+        aws s3 rm s3://netuptinteligencianegocios --recursive
+
+    - name: Terraform Destroy
+      run: |
+        cd infra
+        terraform destroy --auto-approve  # Destruye los recursos creados por Terraform
