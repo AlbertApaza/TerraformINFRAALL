@@ -1,7 +1,8 @@
-name: AWS Glue and Terraform Setup
+name: Despliegue automatizado py-Lambda-s3-grawler-glue-databasecatalog-athena-powerbi
 
-on: [push]
-
+on:
+  workflow_dispatch:
+  
 jobs:
   setup:
     runs-on: ubuntu-latest
